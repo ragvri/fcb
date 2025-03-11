@@ -5,7 +5,15 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   return {
     plugins: [react()],
-    base: '/fcb/',  // Should match your repository name
+    base: '/',
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: undefined
+        }
+      },
+      sourcemap: true
+    },
     server: {
       port: 3000,
       proxy: {
@@ -18,6 +26,6 @@ export default defineConfig(({ mode }) => {
           }
         }
       }
-    },
+    }
   }
 }) 

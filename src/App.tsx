@@ -47,12 +47,16 @@ function App() {
         console.log('API Key available:', !!import.meta.env.VITE_FOOTBALL_API_KEY);
         console.log('Making API request...');
         
-        // barcelona is at id 81
-        const response = await fetch('/api/v4/teams/81/matches?status=SCHEDULED', {
+        // Use Netlify function in production, direct API in development
+        const apiUrl = import.meta.env.PROD
+          ? '/api/matches'  // This will be redirected to /.netlify/functions/matches
+          : '/api/v4/teams/81/matches?status=SCHEDULED';
+        
+        const response = await fetch(apiUrl, {
           method: 'GET',
-          headers: {
-            'X-Auth-Token': import.meta.env.VITE_FOOTBALL_API_KEY
-          }
+          headers: import.meta.env.PROD
+            ? {}  // No headers needed for Netlify function
+            : { 'X-Auth-Token': import.meta.env.VITE_FOOTBALL_API_KEY }
         });
 
         if (!response.ok) {
