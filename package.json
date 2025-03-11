@@ -3,16 +3,14 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://ragvri.github.io/fcb",
+  "homepage": "https://ragvri.github.io/fcb/",
   "engines": {
     "node": ">=21.0.0"
   },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "preview": "vite preview"
   },
   "keywords": [],
   "author": "",
