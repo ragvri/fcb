@@ -43,9 +43,16 @@ function App() {
   useEffect(() => {
     const fetchMatches = async () => {
       try {
+        // Log to verify if we're getting the API key
+        console.log('API Key available:', !!import.meta.env.VITE_FOOTBALL_API_KEY);
+        console.log('Making API request...');
+        
         // barcelona is at id 81
         const response = await fetch('/api/v4/teams/81/matches?status=SCHEDULED', {
-          method: 'GET'
+          method: 'GET',
+          headers: {
+            'X-Auth-Token': import.meta.env.VITE_FOOTBALL_API_KEY
+          }
         });
 
         if (!response.ok) {
@@ -53,7 +60,8 @@ function App() {
           console.error('API Error:', {
             status: response.status,
             statusText: response.statusText,
-            body: errorText
+            body: errorText,
+            headers: Object.fromEntries(response.headers.entries())
           });
           throw new Error(`Failed to fetch matches: ${response.status} ${response.statusText}`);
         }
