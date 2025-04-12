@@ -17,13 +17,13 @@ export const handler = async (event) => {
 
   try {
     console.log('Function starting, checking API key:', !!process.env.VITE_FOOTBALL_API_KEY);
-    
+
     if (!process.env.VITE_FOOTBALL_API_KEY) {
       throw new Error('API key is not set');
     }
 
     const response = await fetch(
-      'https://api.football-data.org/v4/teams/81/matches?status=SCHEDULED',
+      'https://api.football-data.org/v4/teams/81/matches',
       {
         headers: {
           'X-Auth-Token': process.env.VITE_FOOTBALL_API_KEY

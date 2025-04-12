@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
       sourcemap: true
     },
     server: {
-      port: 3000,
+      port: 5173,
       proxy: {
         '/api': {
           target: 'https://api.football-data.org',

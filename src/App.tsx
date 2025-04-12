@@ -19,6 +19,12 @@ interface ApiMatch {
   awayTeam: Team;
   stage: string;
   status: string;
+  score: {
+    fullTime: {
+      home: number;
+      away: number;
+    };
+  };
 }
 
 interface ApiResponse {
@@ -33,11 +39,12 @@ interface Match {
   awayTeam: string;
   stage: string;
   status: string;
+  score: string | null;
 }
 
 function App() {
-  const [matches, setMatches] = useState<Match[]>([])  // Stores the array of Match objects fetched from the API
-  const [loading, setLoading] = useState(true)         // Tracks loading state during API fetch
+  const [matches, setMatches] = useState<Match[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)  // Stores any error messages that occur during fetch
 
   useEffect(() => {
@@ -50,7 +57,7 @@ function App() {
         // Use Netlify function in production, direct API in development
         const apiUrl = import.meta.env.PROD
           ? '/api/matches'  // This will be redirected to /.netlify/functions/matches
-          : '/api/v4/teams/81/matches?status=SCHEDULED';
+          : '/api/v4/teams/81/matches';
 
         const response = await fetch(apiUrl, {
           method: 'GET',
@@ -77,8 +84,21 @@ function App() {
           throw new Error('Invalid response format: matches array not found');
         }
 
-        const formattedMatches: Match[] = data.matches.map((match: ApiMatch) => {
+        const formattedMatches = data.matches.map((match: ApiMatch) => {
           const matchDate = new Date(match.utcDate);
+          const now = new Date();
+          const fiveDaysAgo = new Date(now);
+          fiveDaysAgo.setDate(now.getDate() - 5);
+
+          // Determine if the match should be displayed
+          const isRecentFinishedMatch = match.status === 'FINISHED' && matchDate >= fiveDaysAgo && matchDate <= now;
+          const isScheduledMatch = match.status === 'SCHEDULED' || match.status === 'TIMED';
+          const isLiveMatch = match.status === 'IN_PLAY' || match.status === 'PAUSED';
+
+          if (!isRecentFinishedMatch && !isScheduledMatch && !isLiveMatch) {
+            return null; // Exclude matches that don't meet the criteria
+          }
+
           const options: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' };
           return {
             id: match.id,
@@ -87,9 +107,10 @@ function App() {
             homeTeam: match.homeTeam?.name || 'TBD',
             awayTeam: match.awayTeam?.name || 'TBD',
             stage: match.stage || 'Unknown Stage',
-            status: match.status || 'SCHEDULED'
+            status: match.status || 'SCHEDULED',
+            score: (isLiveMatch || isRecentFinishedMatch) ? `${match.score.fullTime.home} - ${match.score.fullTime.away}` : null
           };
-        });
+        }).filter(Boolean) as Match[]; // Remove null values and cast to Match[]
 
         setMatches(formattedMatches);
         setLoading(false);
@@ -146,6 +167,7 @@ function App() {
                 <span className="team away">{match.awayTeam}</span>
               </div>
               <div className="match-status">{match.status}</div>
+              {match.score && <div className="match-score">{match.score}</div>}
             </div>
           ))
         )}

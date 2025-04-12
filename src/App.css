@@ -46,7 +46,8 @@ button:focus-visible {
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  border-top: 4px solid #a50044; /* Barcelona primary color */
+  border-top: 4px solid #a50044;
+  /* Barcelona primary color */
 }
 
 .match-card:hover {
@@ -56,7 +57,8 @@ button:focus-visible {
 
 .match-date {
   font-size: 1.1rem;
-  color: #004d98; /* Barcelona secondary color */
+  color: #004d98;
+  /* Barcelona secondary color */
   font-weight: 600;
   margin-bottom: 0.75rem;
 }
@@ -114,6 +116,16 @@ button:focus-visible {
   margin-top: 0.5rem;
 }
 
+/* Styles for the match score */
+.match-score {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #4CAF50;
+  /* Green color for finished matches */
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
 h1 {
   color: #a50044;
   margin-bottom: 2rem;
@@ -133,8 +145,13 @@ h1 {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Error Message */
@@ -207,4 +224,4 @@ h1 {
   h1 {
     color: #ff1a75;
   }
-} 
+}
