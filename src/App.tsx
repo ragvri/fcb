@@ -46,12 +46,12 @@ function App() {
         // Log to verify if we're getting the API key
         console.log('API Key available:', !!import.meta.env.VITE_FOOTBALL_API_KEY);
         console.log('Making API request...');
-        
+
         // Use Netlify function in production, direct API in development
         const apiUrl = import.meta.env.PROD
           ? '/api/matches'  // This will be redirected to /.netlify/functions/matches
           : '/api/v4/teams/81/matches?status=SCHEDULED';
-        
+
         const response = await fetch(apiUrl, {
           method: 'GET',
           headers: import.meta.env.PROD
@@ -77,15 +77,19 @@ function App() {
           throw new Error('Invalid response format: matches array not found');
         }
 
-        const formattedMatches: Match[] = data.matches.map((match: ApiMatch) => ({
-          id: match.id,
-          competition: match.competition?.name || 'Unknown Competition',
-          date: new Date(match.utcDate).toLocaleString(),
-          homeTeam: match.homeTeam?.name || 'TBD',
-          awayTeam: match.awayTeam?.name || 'TBD',
-          stage: match.stage || 'Unknown Stage',
-          status: match.status || 'SCHEDULED'
-        }));
+        const formattedMatches: Match[] = data.matches.map((match: ApiMatch) => {
+          const matchDate = new Date(match.utcDate);
+          const options: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' };
+          return {
+            id: match.id,
+            competition: match.competition?.name || 'Unknown Competition',
+            date: matchDate.toLocaleString(undefined, options),
+            homeTeam: match.homeTeam?.name || 'TBD',
+            awayTeam: match.awayTeam?.name || 'TBD',
+            stage: match.stage || 'Unknown Stage',
+            status: match.status || 'SCHEDULED'
+          };
+        });
 
         setMatches(formattedMatches);
         setLoading(false);
@@ -150,4 +154,4 @@ function App() {
   )
 }
 
-export default App 
+export default App
