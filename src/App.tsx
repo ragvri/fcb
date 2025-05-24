@@ -49,10 +49,8 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [teamCrests, setTeamCrests] = useState<Record<number, string | null>>({});
-  // const [loading, setLoading] = useState(true) // Duplicate removed by previous step
-  // const [error, setError] = useState<string | null>(null)  // Duplicate removed by previous step
-  // const [allApiMatches, setAllApiMatches] = useState<ApiMatch[]>([]); // Removed state
-  const [pendingDisplayMatches, setPendingDisplayMatches] = useState<ApiMatch[]>([]); // New state
+  const [pendingDisplayMatches, setPendingDisplayMatches] = useState<ApiMatch[] | null>(null); // Start with null instead of empty array
+  const [crestsFetchComplete, setCrestsFetchComplete] = useState(false); // Track if crest fetching is done
 
   const fetchTeamCrests = async (teamIds: number[]) => {
     const crests: Record<number, string | null> = {};
@@ -73,6 +71,7 @@ function App() {
       }
     }
     setTeamCrests(crests);
+    setCrestsFetchComplete(true); // Mark crest fetching as complete
   };
 
   useEffect(() => {
@@ -113,14 +112,8 @@ function App() {
           throw new Error('Invalid response format: matches array not found');
         }
 
-        // setAllApiMatches(data.matches); // Removed call to setAllApiMatches
         setError(null); // Clear any previous errors
 
-        // Filtering logic now directly uses data.matches
-        // const options: Intl.DateTimeFormatOptions = { // Options not needed for just filtering
-        //   weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', 
-        //   hour: '2-digit', minute: '2-digit', timeZoneName: 'short' 
-        // };
         const now = new Date();
         const fiveDaysAgo = new Date(now);
         fiveDaysAgo.setDate(now.getDate() - 5);
@@ -135,8 +128,6 @@ function App() {
 
         setPendingDisplayMatches(filteredApiMatches);
 
-        // fetchTeamCrests and related logic REMOVED from here
-        // setLoading(false) is NOT called here on success path
       } catch (err) {
         console.error('Fetch error:', err);
         setError(err instanceof Error ? err.message : 'An error occurred while fetching matches');
@@ -170,12 +161,13 @@ function App() {
     });
 
     if (uniqueTeamIds.size > 0) {
+      console.log('fetching total of ', uniqueTeamIds.size, 'team crests');
       fetchTeamCrests(Array.from(uniqueTeamIds));
     } else {
       // Matches are pending display, but they have no team IDs (or no teams).
       // Clear crests. The next useEffect will format these matches without crests.
       setTeamCrests({});
-      // setLoading(false) will be handled by the next useEffect.
+      setCrestsFetchComplete(true); // Mark as complete since no crests needed
     }
   }, [pendingDisplayMatches]); // Dependency: pendingDisplayMatches
 
@@ -188,12 +180,23 @@ function App() {
     // If pendingDisplayMatches IS defined, but empty, the previous useEffect 
     // (Plan Step 2) already handled setMatches([]) and setLoading(false).
     if (pendingDisplayMatches.length === 0) {
-      // If initialFetch resulted in no matches to display, the previous effect
-      // (Plan Step 2) would have setMatches([]), setTeamCrests({}), and setLoading(false).
-      // So, we can safely return here.
-      return; 
+      return;
     }
-    
+
+    // Check if we have all the team crests that we need
+    const uniqueTeamIds = new Set<number>();
+    pendingDisplayMatches.forEach(match => {
+      if (match.homeTeam?.id) uniqueTeamIds.add(match.homeTeam.id);
+      if (match.awayTeam?.id) uniqueTeamIds.add(match.awayTeam.id);
+    });
+
+    // Wait for crest fetching to complete (either successfully or unsuccessfully)
+    // This is safer than checking if all crests loaded, as it handles fetch failures gracefully
+    if (uniqueTeamIds.size > 0 && !crestsFetchComplete) {
+      // Still waiting for team crests fetch to complete, keep showing loading
+      return;
+    }
+
     const options: Intl.DateTimeFormatOptions = {
       weekday: 'long',
       year: 'numeric',
@@ -207,20 +210,20 @@ function App() {
     const finalFormattedMatches = pendingDisplayMatches.map((apiMatch: ApiMatch) => {
       // **** ADD DEFINITIONS HERE (as per subtask instructions) ****
       const matchDate = new Date(apiMatch.utcDate);
-      const now = new Date(); 
+      const now = new Date();
       const fiveDaysAgo = new Date(now);
       fiveDaysAgo.setDate(now.getDate() - 5);
 
       const isRecentFinishedMatch = apiMatch.status === 'FINISHED' && matchDate >= fiveDaysAgo && matchDate <= now;
       const isLiveMatch = apiMatch.status === 'IN_PLAY' || apiMatch.status === 'PAUSED';
       // *****************************
-      
+
       const homeCrest = apiMatch.homeTeam?.id ? teamCrests[apiMatch.homeTeam.id] : null;
       const awayCrest = apiMatch.awayTeam?.id ? teamCrests[apiMatch.awayTeam.id] : null;
-      
+
       const scoreString = (isLiveMatch || isRecentFinishedMatch) && apiMatch.score?.fullTime
-                         ? `${apiMatch.score.fullTime.home} - ${apiMatch.score.fullTime.away}`
-                         : null;
+        ? `${apiMatch.score.fullTime.home} - ${apiMatch.score.fullTime.away}`
+        : null;
 
       return {
         id: apiMatch.id,
@@ -238,12 +241,11 @@ function App() {
 
     setMatches(finalFormattedMatches as Match[]);
 
-    // Only stop loading if no error occurred during initialFetch (or subsequent steps)
-    // and we've actually processed the pending matches.
-    if (!error) { 
+    // Only stop loading if no error occurred and we have all data including crests
+    if (!error) {
       setLoading(false);
     }
-  }, [pendingDisplayMatches, teamCrests, error]); // Corrected dependencies
+  }, [pendingDisplayMatches, teamCrests, crestsFetchComplete, error]); // Corrected dependencies
 
   if (loading) {
     return (
