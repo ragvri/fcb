@@ -51,7 +51,8 @@ function App() {
   const [teamCrests, setTeamCrests] = useState<Record<number, string | null>>({});
   // const [loading, setLoading] = useState(true) // Duplicate removed by previous step
   // const [error, setError] = useState<string | null>(null)  // Duplicate removed by previous step
-  const [rawMatchesData, setRawMatchesData] = useState<ApiMatch[]>([]); // New state for raw API data
+  const [allApiMatches, setAllApiMatches] = useState<ApiMatch[]>([]); // Renamed state
+  const [pendingDisplayMatches, setPendingDisplayMatches] = useState<ApiMatch[]>([]); // New state
 
   const fetchTeamCrests = async (teamIds: number[]) => {
     const crests: Record<number, string | null> = {};
@@ -112,23 +113,30 @@ function App() {
           throw new Error('Invalid response format: matches array not found');
         }
 
-        setRawMatchesData(data.matches); // Store raw data
+        setAllApiMatches(data.matches); // Use renamed state setter
         setError(null); // Clear any previous errors
 
-        const uniqueTeamIds = new Set<number>();
-        data.matches.forEach(match => {
-          if (match.homeTeam?.id) uniqueTeamIds.add(match.homeTeam.id);
-          if (match.awayTeam?.id) uniqueTeamIds.add(match.awayTeam.id);
+        // Filtering logic moved from the second useEffect
+        // const options: Intl.DateTimeFormatOptions = { // Options not needed for just filtering
+        //   weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', 
+        //   hour: '2-digit', minute: '2-digit', timeZoneName: 'short' 
+        // };
+        const now = new Date();
+        const fiveDaysAgo = new Date(now);
+        fiveDaysAgo.setDate(now.getDate() - 5);
+
+        const filteredApiMatches = data.matches.filter(match => {
+          const matchDate = new Date(match.utcDate);
+          const isRecentFinishedMatch = match.status === 'FINISHED' && matchDate >= fiveDaysAgo && matchDate <= now;
+          const isScheduledMatch = match.status === 'SCHEDULED' || match.status === 'TIMED';
+          const isLiveMatch = match.status === 'IN_PLAY' || match.status === 'PAUSED';
+          return isRecentFinishedMatch || isScheduledMatch || isLiveMatch;
         });
 
-        if (uniqueTeamIds.size > 0) {
-          fetchTeamCrests(Array.from(uniqueTeamIds));
-        } else {
-          // No teams to fetch crests for, so we can consider loading done for crests.
-          // The second useEffect will still run and process the rawMatchesData.
-          setTeamCrests({}); // Ensure teamCrests is not undefined for the second effect
-        }
-        // setMatches and setLoading(false) are removed from here
+        setPendingDisplayMatches(filteredApiMatches);
+
+        // fetchTeamCrests and related logic REMOVED from here
+        // setLoading(false) is NOT called here on success path
       } catch (err) {
         console.error('Fetch error:', err);
         setError(err instanceof Error ? err.message : 'An error occurred while fetching matches');
@@ -139,26 +147,50 @@ function App() {
     initialFetch(); // Corrected function call
   }, []);
 
-  // New useEffect for processing data after crests are fetched
+  // useEffect for fetching crests based on pendingDisplayMatches (Plan Step 2)
   useEffect(() => {
-    if (rawMatchesData.length === 0) {
-      // rawMatchesData is not yet loaded, or it's empty.
-      // If it's empty because there were no matches, loading should be set to false.
-      // This case might need to be handled if initialFetch completes with no matches.
-      // For now, if initialFetch had an error, loading is already false.
-      // If initialFetch succeeded with no matches, rawMatchesData is empty,
-      // and fetchTeamCrests might not have been called.
-      // Let's assume initialFetch always leads to this effect running.
-      // If there are no raw matches, and no error, it implies no matches were fetched.
-      if (!error && rawMatchesData.length === 0 && !loading) { // Check loading to prevent premature set
-         // This condition is tricky. If initialFetch is done, and rawMatchesData is empty,
-         // and no error, it means 0 matches.
-         // setMatches([]); // Already default
-         // setLoading(false); // Should be handled carefully
-      }
+    // Only proceed if pendingDisplayMatches has been set by initialFetch
+    if (pendingDisplayMatches === null || typeof pendingDisplayMatches === 'undefined') {
+      return; // initialFetch hasn't populated this yet
+    }
+
+    if (pendingDisplayMatches.length === 0) {
+      // initialFetch completed and found no matches to display.
+      setTeamCrests({});
+      setMatches([]);
+      setLoading(false); // Safe to stop loading, nothing to show.
       return;
     }
 
+    const uniqueTeamIds = new Set<number>();
+    pendingDisplayMatches.forEach(match => {
+      // Ensure match and team objects exist before accessing id
+      if (match.homeTeam?.id) uniqueTeamIds.add(match.homeTeam.id);
+      if (match.awayTeam?.id) uniqueTeamIds.add(match.awayTeam.id);
+    });
+
+    if (uniqueTeamIds.size > 0) {
+      fetchTeamCrests(Array.from(uniqueTeamIds));
+    } else {
+      // Matches are pending display, but they have no team IDs (or no teams).
+      // Clear crests. The next useEffect will format these matches without crests.
+      setTeamCrests({});
+      // setLoading(false) will be handled by the next useEffect.
+    }
+  }, [pendingDisplayMatches]); // Dependency: pendingDisplayMatches
+
+  // Final useEffect for formatting matches with crests and updating UI (Plan Step 3)
+  useEffect(() => {
+    if (pendingDisplayMatches === null || typeof pendingDisplayMatches === 'undefined') {
+      return; // Data not ready yet from initialFetch or preceding useEffect
+    }
+
+    // If pendingDisplayMatches IS defined, but empty, the previous useEffect 
+    // (Plan Step 2) already handled setMatches([]) and setLoading(false).
+    if (pendingDisplayMatches.length === 0) {
+      return; // Nothing to format or display.
+    }
+    
     const options: Intl.DateTimeFormatOptions = {
       weekday: 'long',
       year: 'numeric',
@@ -169,21 +201,13 @@ function App() {
       timeZoneName: 'short'
     };
 
-    const now = new Date();
-    const fiveDaysAgo = new Date(now);
-    fiveDaysAgo.setDate(now.getDate() - 5);
-
-    const formattedMatchesWithCrests = rawMatchesData.map((match: ApiMatch) => {
+    // Temporary: Just to keep things running. This will be replaced in Step 3.
+    // This uses allApiMatches, but in future step it should use pendingDisplayMatches.
+    // For now, this is a placeholder to ensure the structure doesn't break.
+    const formattedMatchesWithCrests = allApiMatches.map((match: ApiMatch) => {
+      // This is a simplified mapping without the filtering, as filtering is now in initialFetch.
+      // It also doesn't use pendingDisplayMatches yet. This is a temporary bridge.
       const matchDate = new Date(match.utcDate);
-
-      const isRecentFinishedMatch = match.status === 'FINISHED' && matchDate >= fiveDaysAgo && matchDate <= now;
-      const isScheduledMatch = match.status === 'SCHEDULED' || match.status === 'TIMED';
-      const isLiveMatch = match.status === 'IN_PLAY' || match.status === 'PAUSED';
-
-      if (!isRecentFinishedMatch && !isScheduledMatch && !isLiveMatch) {
-        return null;
-      }
-
       const homeTeamCrest = match.homeTeam?.id ? teamCrests[match.homeTeam.id] : null;
       const awayTeamCrest = match.awayTeam?.id ? teamCrests[match.awayTeam.id] : null;
 
@@ -203,13 +227,15 @@ function App() {
                  ? `${match.score.fullTime.home} - ${match.score.fullTime.away}`
                  : null
       };
-    }).filter(Boolean) as Match[];
+    }).filter(Boolean) as Match[]; // This filter(Boolean) might be redundant if previous filter worked
 
-    setMatches(formattedMatchesWithCrests);
-    if (!error) { // Only set loading to false if no error occurred in the first effect
-      setLoading(false);
+    setMatches(formattedMatchesWithCrests); // This will be updated in Step 3
+    if (!error && (allApiMatches.length > 0 || pendingDisplayMatches.length > 0 || !loading) ) {
+      // Condition for setLoading(false) will be refined.
+      // For now, if we have processed some matches or initial load is expected to be done.
+      // setLoading(false); // This will be managed more carefully in Step 3
     }
-  }, [rawMatchesData, teamCrests]); // Dependencies as per current subtask instruction
+  }, [allApiMatches, teamCrests, error, loading, pendingDisplayMatches]); // Dependencies updated, will be refined in Step 3
 
   if (loading) {
     return (
