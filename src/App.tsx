@@ -40,15 +40,43 @@ interface Match {
   stage: string;
   status: string;
   score: string | null;
+  homeTeamCrest?: string | null;
+  awayTeamCrest?: string | null;
 }
 
 function App() {
   const [matches, setMatches] = useState<Match[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)  // Stores any error messages that occur during fetch
+  const [error, setError] = useState<string | null>(null)
+  const [teamCrests, setTeamCrests] = useState<Record<number, string | null>>({});
+  const [pendingDisplayMatches, setPendingDisplayMatches] = useState<ApiMatch[] | null>(null); // Start with null instead of empty array
+  const [crestsFetchComplete, setCrestsFetchComplete] = useState(false); // Track if crest fetching is done
+
+  const fetchTeamCrests = async (teamIds: number[]) => {
+    const crests: Record<number, string | null> = {};
+    for (const id of teamIds) {
+      try {
+        // Adjust API URL for dev/prod if necessary. Netlify functions are typically relative.
+        const response = await fetch(`/.netlify/functions/getTeamDetails?teamId=${id}`);
+        if (!response.ok) {
+          console.error(`Failed to fetch crest for team ${id}: ${response.status}`);
+          crests[id] = null;
+          continue;
+        }
+        const data = await response.json();
+        crests[id] = data.crest; // Assuming the function returns { crest: "url" } or { crest: null }
+      } catch (err) {
+        console.error(`Error fetching crest for team ${id}:`, err);
+        crests[id] = null;
+      }
+    }
+    setTeamCrests(crests);
+    setCrestsFetchComplete(true); // Mark crest fetching as complete
+  };
 
   useEffect(() => {
-    const fetchMatches = async () => {
+    const initialFetch = async () => {
+      setLoading(true); // Explicitly set loading true at the start
       try {
         // Log to verify if we're getting the API key
         console.log('API Key available:', !!import.meta.env.VITE_FOOTBALL_API_KEY);
@@ -84,45 +112,140 @@ function App() {
           throw new Error('Invalid response format: matches array not found');
         }
 
-        const formattedMatches = data.matches.map((match: ApiMatch) => {
-          const matchDate = new Date(match.utcDate);
-          const now = new Date();
-          const fiveDaysAgo = new Date(now);
-          fiveDaysAgo.setDate(now.getDate() - 5);
+        setError(null); // Clear any previous errors
 
-          // Determine if the match should be displayed
+        const now = new Date();
+        const fiveDaysAgo = new Date(now);
+        fiveDaysAgo.setDate(now.getDate() - 5);
+
+        const filteredApiMatches = data.matches.filter(match => {
+          const matchDate = new Date(match.utcDate);
           const isRecentFinishedMatch = match.status === 'FINISHED' && matchDate >= fiveDaysAgo && matchDate <= now;
           const isScheduledMatch = match.status === 'SCHEDULED' || match.status === 'TIMED';
           const isLiveMatch = match.status === 'IN_PLAY' || match.status === 'PAUSED';
+          return isRecentFinishedMatch || isScheduledMatch || isLiveMatch;
+        });
 
-          if (!isRecentFinishedMatch && !isScheduledMatch && !isLiveMatch) {
-            return null; // Exclude matches that don't meet the criteria
-          }
+        setPendingDisplayMatches(filteredApiMatches);
 
-          const options: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' };
-          return {
-            id: match.id,
-            competition: match.competition?.name || 'Unknown Competition',
-            date: matchDate.toLocaleString(undefined, options),
-            homeTeam: match.homeTeam?.name || 'TBD',
-            awayTeam: match.awayTeam?.name || 'TBD',
-            stage: match.stage || 'Unknown Stage',
-            status: match.status || 'SCHEDULED',
-            score: (isLiveMatch || isRecentFinishedMatch) ? `${match.score.fullTime.home} - ${match.score.fullTime.away}` : null
-          };
-        }).filter(Boolean) as Match[]; // Remove null values and cast to Match[]
-
-        setMatches(formattedMatches);
-        setLoading(false);
       } catch (err) {
         console.error('Fetch error:', err);
         setError(err instanceof Error ? err.message : 'An error occurred while fetching matches');
-        setLoading(false);
+        setLoading(false); // Error in initial fetch, stop loading
       }
     };
 
-    fetchMatches();
+    initialFetch(); // Corrected function call
   }, []);
+
+  // useEffect for fetching crests based on pendingDisplayMatches (Plan Step 2)
+  useEffect(() => {
+    // Only proceed if pendingDisplayMatches has been set by initialFetch
+    if (pendingDisplayMatches === null || typeof pendingDisplayMatches === 'undefined') {
+      return; // initialFetch hasn't populated this yet
+    }
+
+    if (pendingDisplayMatches.length === 0) {
+      // initialFetch completed and found no matches to display.
+      setTeamCrests({});
+      setMatches([]);
+      setLoading(false); // Safe to stop loading, nothing to show.
+      return;
+    }
+
+    const uniqueTeamIds = new Set<number>();
+    pendingDisplayMatches.forEach(match => {
+      // Ensure match and team objects exist before accessing id
+      if (match.homeTeam?.id) uniqueTeamIds.add(match.homeTeam.id);
+      if (match.awayTeam?.id) uniqueTeamIds.add(match.awayTeam.id);
+    });
+
+    if (uniqueTeamIds.size > 0) {
+      console.log('fetching total of ', uniqueTeamIds.size, 'team crests');
+      fetchTeamCrests(Array.from(uniqueTeamIds));
+    } else {
+      // Matches are pending display, but they have no team IDs (or no teams).
+      // Clear crests. The next useEffect will format these matches without crests.
+      setTeamCrests({});
+      setCrestsFetchComplete(true); // Mark as complete since no crests needed
+    }
+  }, [pendingDisplayMatches]); // Dependency: pendingDisplayMatches
+
+  // Final useEffect for formatting matches with crests and updating UI (Plan Step 3)
+  useEffect(() => {
+    if (pendingDisplayMatches === null || typeof pendingDisplayMatches === 'undefined') {
+      return; // Data not ready yet from initialFetch or preceding useEffect
+    }
+
+    // If pendingDisplayMatches IS defined, but empty, the previous useEffect 
+    // (Plan Step 2) already handled setMatches([]) and setLoading(false).
+    if (pendingDisplayMatches.length === 0) {
+      return;
+    }
+
+    // Check if we have all the team crests that we need
+    const uniqueTeamIds = new Set<number>();
+    pendingDisplayMatches.forEach(match => {
+      if (match.homeTeam?.id) uniqueTeamIds.add(match.homeTeam.id);
+      if (match.awayTeam?.id) uniqueTeamIds.add(match.awayTeam.id);
+    });
+
+    // Wait for crest fetching to complete (either successfully or unsuccessfully)
+    // This is safer than checking if all crests loaded, as it handles fetch failures gracefully
+    if (uniqueTeamIds.size > 0 && !crestsFetchComplete) {
+      // Still waiting for team crests fetch to complete, keep showing loading
+      return;
+    }
+
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    };
+
+    const finalFormattedMatches = pendingDisplayMatches.map((apiMatch: ApiMatch) => {
+      // **** ADD DEFINITIONS HERE (as per subtask instructions) ****
+      const matchDate = new Date(apiMatch.utcDate);
+      const now = new Date();
+      const fiveDaysAgo = new Date(now);
+      fiveDaysAgo.setDate(now.getDate() - 5);
+
+      const isRecentFinishedMatch = apiMatch.status === 'FINISHED' && matchDate >= fiveDaysAgo && matchDate <= now;
+      const isLiveMatch = apiMatch.status === 'IN_PLAY' || apiMatch.status === 'PAUSED';
+      // *****************************
+
+      const homeCrest = apiMatch.homeTeam?.id ? teamCrests[apiMatch.homeTeam.id] : null;
+      const awayCrest = apiMatch.awayTeam?.id ? teamCrests[apiMatch.awayTeam.id] : null;
+
+      const scoreString = (isLiveMatch || isRecentFinishedMatch) && apiMatch.score?.fullTime
+        ? `${apiMatch.score.fullTime.home} - ${apiMatch.score.fullTime.away}`
+        : null;
+
+      return {
+        id: apiMatch.id,
+        competition: apiMatch.competition?.name || 'Unknown Competition',
+        date: matchDate.toLocaleString(undefined, options), // matchDate is now defined locally
+        homeTeam: apiMatch.homeTeam?.name || 'TBD',
+        awayTeam: apiMatch.awayTeam?.name || 'TBD',
+        homeTeamCrest: homeCrest,
+        awayTeamCrest: awayCrest,
+        stage: apiMatch.stage || 'Unknown Stage',
+        status: apiMatch.status, // status from apiMatch
+        score: scoreString, // Uses locally defined isLiveMatch & isRecentFinishedMatch
+      };
+    });
+
+    setMatches(finalFormattedMatches as Match[]);
+
+    // Only stop loading if no error occurred and we have all data including crests
+    if (!error) {
+      setLoading(false);
+    }
+  }, [pendingDisplayMatches, teamCrests, crestsFetchComplete, error]); // Corrected dependencies
 
   if (loading) {
     return (
@@ -162,9 +285,19 @@ function App() {
                 <span className="match-stage"> • {match.stage.replace(/_/g, ' ')}</span>
               </div>
               <div className="match-teams">
-                <span className="team home">{match.homeTeam}</span>
+                <span className="team home">
+                  {match.homeTeamCrest && (
+                    <img src={match.homeTeamCrest} alt={`${match.homeTeam} crest`} className="team-crest" />
+                  )}
+                  {match.homeTeam}
+                </span>
                 <span className="vs">vs</span>
-                <span className="team away">{match.awayTeam}</span>
+                <span className="team away">
+                  {match.awayTeamCrest && (
+                    <img src={match.awayTeamCrest} alt={`${match.awayTeam} crest`} className="team-crest" />
+                  )}
+                  {match.awayTeam}
+                </span>
               </div>
               <div className="match-status">{match.status}</div>
               {match.score && <div className="match-score">{match.score}</div>}
