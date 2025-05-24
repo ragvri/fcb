@@ -136,7 +136,7 @@ function App() {
       }
     };
 
-    fetchMatches();
+    initialFetch(); // Corrected function call
   }, []);
 
   // New useEffect for processing data after crests are fetched
