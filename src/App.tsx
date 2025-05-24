@@ -51,7 +51,7 @@ function App() {
   const [teamCrests, setTeamCrests] = useState<Record<number, string | null>>({});
   // const [loading, setLoading] = useState(true) // Duplicate removed by previous step
   // const [error, setError] = useState<string | null>(null)  // Duplicate removed by previous step
-  const [allApiMatches, setAllApiMatches] = useState<ApiMatch[]>([]); // Renamed state
+  // const [allApiMatches, setAllApiMatches] = useState<ApiMatch[]>([]); // Removed state
   const [pendingDisplayMatches, setPendingDisplayMatches] = useState<ApiMatch[]>([]); // New state
 
   const fetchTeamCrests = async (teamIds: number[]) => {
@@ -113,10 +113,10 @@ function App() {
           throw new Error('Invalid response format: matches array not found');
         }
 
-        setAllApiMatches(data.matches); // Use renamed state setter
+        // setAllApiMatches(data.matches); // Removed call to setAllApiMatches
         setError(null); // Clear any previous errors
 
-        // Filtering logic moved from the second useEffect
+        // Filtering logic now directly uses data.matches
         // const options: Intl.DateTimeFormatOptions = { // Options not needed for just filtering
         //   weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', 
         //   hour: '2-digit', minute: '2-digit', timeZoneName: 'short' 
