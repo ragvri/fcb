@@ -188,7 +188,10 @@ function App() {
     // If pendingDisplayMatches IS defined, but empty, the previous useEffect 
     // (Plan Step 2) already handled setMatches([]) and setLoading(false).
     if (pendingDisplayMatches.length === 0) {
-      return; // Nothing to format or display.
+      // If initialFetch resulted in no matches to display, the previous effect
+      // (Plan Step 2) would have setMatches([]), setTeamCrests({}), and setLoading(false).
+      // So, we can safely return here.
+      return; 
     }
     
     const options: Intl.DateTimeFormatOptions = {
@@ -201,41 +204,46 @@ function App() {
       timeZoneName: 'short'
     };
 
-    // Temporary: Just to keep things running. This will be replaced in Step 3.
-    // This uses allApiMatches, but in future step it should use pendingDisplayMatches.
-    // For now, this is a placeholder to ensure the structure doesn't break.
-    const formattedMatchesWithCrests = allApiMatches.map((match: ApiMatch) => {
-      // This is a simplified mapping without the filtering, as filtering is now in initialFetch.
-      // It also doesn't use pendingDisplayMatches yet. This is a temporary bridge.
-      const matchDate = new Date(match.utcDate);
-      const homeTeamCrest = match.homeTeam?.id ? teamCrests[match.homeTeam.id] : null;
-      const awayTeamCrest = match.awayTeam?.id ? teamCrests[match.awayTeam.id] : null;
+    const finalFormattedMatches = pendingDisplayMatches.map((apiMatch: ApiMatch) => {
+      // **** ADD DEFINITIONS HERE (as per subtask instructions) ****
+      const matchDate = new Date(apiMatch.utcDate);
+      const now = new Date(); 
+      const fiveDaysAgo = new Date(now);
+      fiveDaysAgo.setDate(now.getDate() - 5);
+
+      const isRecentFinishedMatch = apiMatch.status === 'FINISHED' && matchDate >= fiveDaysAgo && matchDate <= now;
+      const isLiveMatch = apiMatch.status === 'IN_PLAY' || apiMatch.status === 'PAUSED';
+      // *****************************
+      
+      const homeCrest = apiMatch.homeTeam?.id ? teamCrests[apiMatch.homeTeam.id] : null;
+      const awayCrest = apiMatch.awayTeam?.id ? teamCrests[apiMatch.awayTeam.id] : null;
+      
+      const scoreString = (isLiveMatch || isRecentFinishedMatch) && apiMatch.score?.fullTime
+                         ? `${apiMatch.score.fullTime.home} - ${apiMatch.score.fullTime.away}`
+                         : null;
 
       return {
-        id: match.id,
-        competition: match.competition?.name || 'Unknown Competition',
-        date: matchDate.toLocaleString(undefined, options),
-        homeTeam: match.homeTeam?.name || 'TBD',
-        awayTeam: match.awayTeam?.name || 'TBD',
-        // homeTeamId: match.homeTeam?.id, // Keep if needed for keys/debugging
-        // awayTeamId: match.awayTeam?.id, // Keep if needed for keys/debugging
-        homeTeamCrest,
-        awayTeamCrest,
-        stage: match.stage || 'Unknown Stage',
-        status: match.status || 'SCHEDULED',
-        score: (isLiveMatch || isRecentFinishedMatch) && match.score?.fullTime
-                 ? `${match.score.fullTime.home} - ${match.score.fullTime.away}`
-                 : null
+        id: apiMatch.id,
+        competition: apiMatch.competition?.name || 'Unknown Competition',
+        date: matchDate.toLocaleString(undefined, options), // matchDate is now defined locally
+        homeTeam: apiMatch.homeTeam?.name || 'TBD',
+        awayTeam: apiMatch.awayTeam?.name || 'TBD',
+        homeTeamCrest: homeCrest,
+        awayTeamCrest: awayCrest,
+        stage: apiMatch.stage || 'Unknown Stage',
+        status: apiMatch.status, // status from apiMatch
+        score: scoreString, // Uses locally defined isLiveMatch & isRecentFinishedMatch
       };
-    }).filter(Boolean) as Match[]; // This filter(Boolean) might be redundant if previous filter worked
+    });
 
-    setMatches(formattedMatchesWithCrests); // This will be updated in Step 3
-    if (!error && (allApiMatches.length > 0 || pendingDisplayMatches.length > 0 || !loading) ) {
-      // Condition for setLoading(false) will be refined.
-      // For now, if we have processed some matches or initial load is expected to be done.
-      // setLoading(false); // This will be managed more carefully in Step 3
+    setMatches(finalFormattedMatches as Match[]);
+
+    // Only stop loading if no error occurred during initialFetch (or subsequent steps)
+    // and we've actually processed the pending matches.
+    if (!error) { 
+      setLoading(false);
     }
-  }, [allApiMatches, teamCrests, error, loading, pendingDisplayMatches]); // Dependencies updated, will be refined in Step 3
+  }, [pendingDisplayMatches, teamCrests, error]); // Corrected dependencies
 
   if (loading) {
     return (
