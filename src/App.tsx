@@ -40,15 +40,43 @@ interface Match {
   stage: string;
   status: string;
   score: string | null;
+  homeTeamCrest?: string | null;
+  awayTeamCrest?: string | null;
 }
 
 function App() {
   const [matches, setMatches] = useState<Match[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)  // Stores any error messages that occur during fetch
+  const [error, setError] = useState<string | null>(null)
+  const [teamCrests, setTeamCrests] = useState<Record<number, string | null>>({});
+  // const [loading, setLoading] = useState(true) // Duplicate removed by previous step
+  // const [error, setError] = useState<string | null>(null)  // Duplicate removed by previous step
+  const [rawMatchesData, setRawMatchesData] = useState<ApiMatch[]>([]); // New state for raw API data
+
+  const fetchTeamCrests = async (teamIds: number[]) => {
+    const crests: Record<number, string | null> = {};
+    for (const id of teamIds) {
+      try {
+        // Adjust API URL for dev/prod if necessary. Netlify functions are typically relative.
+        const response = await fetch(`/.netlify/functions/getTeamDetails?teamId=${id}`);
+        if (!response.ok) {
+          console.error(`Failed to fetch crest for team ${id}: ${response.status}`);
+          crests[id] = null;
+          continue;
+        }
+        const data = await response.json();
+        crests[id] = data.crest; // Assuming the function returns { crest: "url" } or { crest: null }
+      } catch (err) {
+        console.error(`Error fetching crest for team ${id}:`, err);
+        crests[id] = null;
+      }
+    }
+    setTeamCrests(crests);
+  };
 
   useEffect(() => {
-    const fetchMatches = async () => {
+    const initialFetch = async () => {
+      setLoading(true); // Explicitly set loading true at the start
       try {
         // Log to verify if we're getting the API key
         console.log('API Key available:', !!import.meta.env.VITE_FOOTBALL_API_KEY);
@@ -84,45 +112,104 @@ function App() {
           throw new Error('Invalid response format: matches array not found');
         }
 
-        const formattedMatches = data.matches.map((match: ApiMatch) => {
-          const matchDate = new Date(match.utcDate);
-          const now = new Date();
-          const fiveDaysAgo = new Date(now);
-          fiveDaysAgo.setDate(now.getDate() - 5);
+        setRawMatchesData(data.matches); // Store raw data
+        setError(null); // Clear any previous errors
 
-          // Determine if the match should be displayed
-          const isRecentFinishedMatch = match.status === 'FINISHED' && matchDate >= fiveDaysAgo && matchDate <= now;
-          const isScheduledMatch = match.status === 'SCHEDULED' || match.status === 'TIMED';
-          const isLiveMatch = match.status === 'IN_PLAY' || match.status === 'PAUSED';
+        const uniqueTeamIds = new Set<number>();
+        data.matches.forEach(match => {
+          if (match.homeTeam?.id) uniqueTeamIds.add(match.homeTeam.id);
+          if (match.awayTeam?.id) uniqueTeamIds.add(match.awayTeam.id);
+        });
 
-          if (!isRecentFinishedMatch && !isScheduledMatch && !isLiveMatch) {
-            return null; // Exclude matches that don't meet the criteria
-          }
-
-          const options: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' };
-          return {
-            id: match.id,
-            competition: match.competition?.name || 'Unknown Competition',
-            date: matchDate.toLocaleString(undefined, options),
-            homeTeam: match.homeTeam?.name || 'TBD',
-            awayTeam: match.awayTeam?.name || 'TBD',
-            stage: match.stage || 'Unknown Stage',
-            status: match.status || 'SCHEDULED',
-            score: (isLiveMatch || isRecentFinishedMatch) ? `${match.score.fullTime.home} - ${match.score.fullTime.away}` : null
-          };
-        }).filter(Boolean) as Match[]; // Remove null values and cast to Match[]
-
-        setMatches(formattedMatches);
-        setLoading(false);
+        if (uniqueTeamIds.size > 0) {
+          fetchTeamCrests(Array.from(uniqueTeamIds));
+        } else {
+          // No teams to fetch crests for, so we can consider loading done for crests.
+          // The second useEffect will still run and process the rawMatchesData.
+          setTeamCrests({}); // Ensure teamCrests is not undefined for the second effect
+        }
+        // setMatches and setLoading(false) are removed from here
       } catch (err) {
         console.error('Fetch error:', err);
         setError(err instanceof Error ? err.message : 'An error occurred while fetching matches');
-        setLoading(false);
+        setLoading(false); // Error in initial fetch, stop loading
       }
     };
 
     fetchMatches();
   }, []);
+
+  // New useEffect for processing data after crests are fetched
+  useEffect(() => {
+    if (rawMatchesData.length === 0) {
+      // rawMatchesData is not yet loaded, or it's empty.
+      // If it's empty because there were no matches, loading should be set to false.
+      // This case might need to be handled if initialFetch completes with no matches.
+      // For now, if initialFetch had an error, loading is already false.
+      // If initialFetch succeeded with no matches, rawMatchesData is empty,
+      // and fetchTeamCrests might not have been called.
+      // Let's assume initialFetch always leads to this effect running.
+      // If there are no raw matches, and no error, it implies no matches were fetched.
+      if (!error && rawMatchesData.length === 0 && !loading) { // Check loading to prevent premature set
+         // This condition is tricky. If initialFetch is done, and rawMatchesData is empty,
+         // and no error, it means 0 matches.
+         // setMatches([]); // Already default
+         // setLoading(false); // Should be handled carefully
+      }
+      return;
+    }
+
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    };
+
+    const now = new Date();
+    const fiveDaysAgo = new Date(now);
+    fiveDaysAgo.setDate(now.getDate() - 5);
+
+    const formattedMatchesWithCrests = rawMatchesData.map((match: ApiMatch) => {
+      const matchDate = new Date(match.utcDate);
+
+      const isRecentFinishedMatch = match.status === 'FINISHED' && matchDate >= fiveDaysAgo && matchDate <= now;
+      const isScheduledMatch = match.status === 'SCHEDULED' || match.status === 'TIMED';
+      const isLiveMatch = match.status === 'IN_PLAY' || match.status === 'PAUSED';
+
+      if (!isRecentFinishedMatch && !isScheduledMatch && !isLiveMatch) {
+        return null;
+      }
+
+      const homeTeamCrest = match.homeTeam?.id ? teamCrests[match.homeTeam.id] : null;
+      const awayTeamCrest = match.awayTeam?.id ? teamCrests[match.awayTeam.id] : null;
+
+      return {
+        id: match.id,
+        competition: match.competition?.name || 'Unknown Competition',
+        date: matchDate.toLocaleString(undefined, options),
+        homeTeam: match.homeTeam?.name || 'TBD',
+        awayTeam: match.awayTeam?.name || 'TBD',
+        // homeTeamId: match.homeTeam?.id, // Keep if needed for keys/debugging
+        // awayTeamId: match.awayTeam?.id, // Keep if needed for keys/debugging
+        homeTeamCrest,
+        awayTeamCrest,
+        stage: match.stage || 'Unknown Stage',
+        status: match.status || 'SCHEDULED',
+        score: (isLiveMatch || isRecentFinishedMatch) && match.score?.fullTime
+                 ? `${match.score.fullTime.home} - ${match.score.fullTime.away}`
+                 : null
+      };
+    }).filter(Boolean) as Match[];
+
+    setMatches(formattedMatchesWithCrests);
+    if (!error) { // Only set loading to false if no error occurred in the first effect
+      setLoading(false);
+    }
+  }, [rawMatchesData, teamCrests]); // Dependencies as per current subtask instruction
 
   if (loading) {
     return (
@@ -162,9 +249,19 @@ function App() {
                 <span className="match-stage"> • {match.stage.replace(/_/g, ' ')}</span>
               </div>
               <div className="match-teams">
-                <span className="team home">{match.homeTeam}</span>
+                <span className="team home">
+                  {match.homeTeamCrest && (
+                    <img src={match.homeTeamCrest} alt={`${match.homeTeam} crest`} className="team-crest" />
+                  )}
+                  {match.homeTeam}
+                </span>
                 <span className="vs">vs</span>
-                <span className="team away">{match.awayTeam}</span>
+                <span className="team away">
+                  {match.awayTeamCrest && (
+                    <img src={match.awayTeamCrest} alt={`${match.awayTeam} crest`} className="team-crest" />
+                  )}
+                  {match.awayTeam}
+                </span>
               </div>
               <div className="match-status">{match.status}</div>
               {match.score && <div className="match-score">{match.score}</div>}

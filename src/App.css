@@ -92,12 +92,36 @@ button:focus-visible {
   flex: 1;
 }
 
+.team-crest {
+  width: 20px; /* Or your preferred size */
+  height: 20px; /* Or your preferred size */
+  margin-right: 8px; /* Space between crest and team name */
+  /* margin-left: 8px; /* Add if crest is after team name, or for bilateral spacing */
+  vertical-align: middle; /* Aligns image nicely with text */
+  object-fit: contain; /* Ensures the image scales nicely within the dimensions */
+}
+
+/* Media Query for smaller screens */
+@media (max-width: 600px) {
+  .team-crest {
+    width: 16px; /* Smaller size for mobile */
+    height: 16px; /* Smaller size for mobile */
+    margin-right: 6px; /* Adjusted margin for smaller icon */
+  }
+}
+
 .team.home {
-  text-align: right;
+  text-align: right; /* Existing */
+  display: inline-flex; /* New */
+  align-items: center; /* New */
+  justify-content: flex-end; /* New */
 }
 
 .team.away {
-  text-align: left;
+  text-align: left; /* Existing */
+  display: inline-flex; /* New */
+  align-items: center; /* New */
+  justify-content: flex-start; /* New */
 }
 
 .vs {
