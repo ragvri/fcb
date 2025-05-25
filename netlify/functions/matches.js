@@ -1,3 +1,5 @@
+import { makeRateLimitedApiCall, getRateLimitStatus } from './utils/rateLimiter.js';
+
 export const handler = async (event) => {
   // Set CORS headers
   const headers = {
@@ -17,18 +19,16 @@ export const handler = async (event) => {
 
   try {
     console.log('Function starting, checking API key:', !!process.env.VITE_FOOTBALL_API_KEY);
+    console.log('Rate limit status:', getRateLimitStatus());
 
     if (!process.env.VITE_FOOTBALL_API_KEY) {
       throw new Error('API key is not set');
     }
 
-    const response = await fetch(
+    // Use rate-limited API call
+    const response = await makeRateLimitedApiCall(
       'https://api.football-data.org/v4/teams/81/matches',
-      {
-        headers: {
-          'X-Auth-Token': process.env.VITE_FOOTBALL_API_KEY
-        }
-      }
+      process.env.VITE_FOOTBALL_API_KEY
     );
 
     if (!response.ok) {
@@ -54,7 +54,7 @@ export const handler = async (event) => {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         error: error.message,
         type: error.constructor.name
       })

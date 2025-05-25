@@ -1,3 +1,5 @@
+import { makeRateLimitedApiCall, getRateLimitStatus } from './utils/rateLimiter.js';
+
 export const handler = async (event) => {
   // Set CORS headers
   const headers = {
@@ -35,13 +37,12 @@ export const handler = async (event) => {
   }
 
   try {
-    const response = await fetch(
+    console.log('Rate limit status before team details call:', getRateLimitStatus());
+
+    // Use rate-limited API call
+    const response = await makeRateLimitedApiCall(
       `https://api.football-data.org/v4/teams/${teamId}`,
-      {
-        headers: {
-          'X-Auth-Token': process.env.VITE_FOOTBALL_API_KEY
-        }
-      }
+      process.env.VITE_FOOTBALL_API_KEY
     );
 
     if (!response.ok) {
@@ -54,7 +55,7 @@ export const handler = async (event) => {
       return {
         statusCode: response.status,
         headers,
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           error: `Failed to fetch team data for teamId ${teamId}: ${response.statusText}`,
           details: errorText
         })
@@ -66,15 +67,15 @@ export const handler = async (event) => {
     // or just { crest: data.crest } if we want to be minimal.
     // For now, let's return the crest directly.
     if (!data.crest) {
-         console.warn('Crest not found for teamId ' + teamId + '. API response:', data);
-         // Return null or an empty string if crest is not available but the request was otherwise successful
-         return {
-            statusCode: 200, // Or 404 if we consider missing crest as "not found"
-            headers,
-            body: JSON.stringify({ crest: null }) // Explicitly return null for crest
-         };
+      console.warn('Crest not found for teamId ' + teamId + '. API response:', data);
+      // Return null or an empty string if crest is not available but the request was otherwise successful
+      return {
+        statusCode: 200, // Or 404 if we consider missing crest as "not found"
+        headers,
+        body: JSON.stringify({ crest: null }) // Explicitly return null for crest
+      };
     }
-    
+
     return {
       statusCode: 200,
       headers,
@@ -86,9 +87,9 @@ export const handler = async (event) => {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         error: error.message,
-        type: error.constructor.name 
+        type: error.constructor.name
       })
     };
   }
