@@ -12,8 +12,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "netlify-dev": "netlify dev",
-    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-    "lint:fix": "eslint . --ext js,jsx --fix",
+    "lint": "eslint . --ext ts,tsx,js,jsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext ts,tsx,js,jsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "type-check": "tsc --noEmit",
@@ -46,7 +46,7 @@
     "lint-staged": "^15.2.2",
     "netlify-cli": "^16.1.0",
     "prettier": "^3.2.5",
-    "typescript": "^5.2.2",
+    "typescript": "^5.3.3",
     "vite": "^5.1.0"
   },
   "lint-staged": {
