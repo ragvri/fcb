@@ -93,35 +93,51 @@ button:focus-visible {
 }
 
 .team-crest {
-  width: 20px; /* Or your preferred size */
-  height: 20px; /* Or your preferred size */
-  margin-right: 8px; /* Space between crest and team name */
+  width: 20px;
+  /* Or your preferred size */
+  height: 20px;
+  /* Or your preferred size */
+  margin-right: 8px;
+  /* Space between crest and team name */
   /* margin-left: 8px; /* Add if crest is after team name, or for bilateral spacing */
-  vertical-align: middle; /* Aligns image nicely with text */
-  object-fit: contain; /* Ensures the image scales nicely within the dimensions */
+  vertical-align: middle;
+  /* Aligns image nicely with text */
+  object-fit: contain;
+  /* Ensures the image scales nicely within the dimensions */
 }
 
 /* Media Query for smaller screens */
 @media (max-width: 600px) {
   .team-crest {
-    width: 16px; /* Smaller size for mobile */
-    height: 16px; /* Smaller size for mobile */
-    margin-right: 6px; /* Adjusted margin for smaller icon */
+    width: 16px;
+    /* Smaller size for mobile */
+    height: 16px;
+    /* Smaller size for mobile */
+    margin-right: 6px;
+    /* Adjusted margin for smaller icon */
   }
 }
 
 .team.home {
-  text-align: right; /* Existing */
-  display: inline-flex; /* New */
-  align-items: center; /* New */
-  justify-content: flex-end; /* New */
+  text-align: right;
+  /* Existing */
+  display: inline-flex;
+  /* New */
+  align-items: center;
+  /* New */
+  justify-content: flex-end;
+  /* New */
 }
 
 .team.away {
-  text-align: left; /* Existing */
-  display: inline-flex; /* New */
-  align-items: center; /* New */
-  justify-content: flex-start; /* New */
+  text-align: left;
+  /* Existing */
+  display: inline-flex;
+  /* New */
+  align-items: center;
+  /* New */
+  justify-content: flex-start;
+  /* New */
 }
 
 .vs {
@@ -220,6 +236,261 @@ h1 {
 .no-matches p {
   color: #666;
   font-size: 1.1rem;
+}
+
+/* Clickable competition styling */
+.competition-name.clickable {
+  color: #004d98;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+  display: inline-block;
+  padding: 2px 4px;
+  border-radius: 3px;
+  user-select: none;
+}
+
+.competition-name.clickable:hover {
+  color: #a50044;
+  background-color: rgba(165, 0, 68, 0.1);
+}
+
+/* Standings Modal Styles */
+.standings-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.standings-modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 900px;
+  max-height: 90vh;
+  width: 100%;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.standings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px;
+  border-bottom: 1px solid #eee;
+  background-color: #a50044;
+  color: white;
+  border-radius: 12px 12px 0 0;
+}
+
+.standings-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 2rem;
+  cursor: pointer;
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.close-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.standings-content {
+  padding: 25px;
+}
+
+.competition-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 25px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.competition-emblem {
+  width: 60px;
+  height: 60px;
+  margin-right: 15px;
+  object-fit: contain;
+}
+
+.competition-info h3 {
+  margin: 0 0 5px 0;
+  color: #333;
+}
+
+.competition-info p {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.standings-table-container {
+  margin-bottom: 30px;
+}
+
+.standings-table-container h4 {
+  margin: 0 0 15px 0;
+  color: #004d98;
+  font-size: 1.1rem;
+}
+
+.standings-table {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.standings-header-row,
+.standings-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 40px 40px 40px 40px 50px 50px 50px 60px;
+  gap: 8px;
+  padding: 12px 15px;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.standings-header-row {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #ddd;
+}
+
+.standings-row {
+  border-bottom: 1px solid #eee;
+  transition: background-color 0.2s ease;
+  background-color: black;
+}
+
+.standings-row:hover {
+  background-color: #0bb828;
+}
+
+.standings-row:last-child {
+  border-bottom: none;
+}
+
+.barcelona-row {
+  background-color: #fff3e0 !important;
+  border-left: 4px solid #a50044;
+}
+
+.barcelona-row:hover {
+  background-color: #ffe0b3 !important;
+}
+
+.standings-row .team {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.team-crest-small {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.team-name {
+  font-weight: 500;
+}
+
+.standings-row .pos {
+  font-weight: 600;
+  text-align: center;
+}
+
+.standings-row .points {
+  font-weight: 600;
+  color: #004d98;
+}
+
+.standings-row .gd {
+  color: #333;
+}
+
+.standings-loading,
+.standings-error {
+  text-align: center;
+  padding: 40px 25px;
+}
+
+.standings-loading .loading-spinner {
+  margin: 0 auto 20px auto;
+}
+
+.standings-error {
+  color: #d32f2f;
+}
+
+/* Responsive design for standings */
+@media (max-width: 768px) {
+  .standings-modal {
+    margin: 10px;
+    max-height: 95vh;
+  }
+
+  .standings-header-row,
+  .standings-row {
+    grid-template-columns: 35px 1fr 35px 35px 35px 35px 40px 40px 40px 50px;
+    gap: 4px;
+    padding: 10px 12px;
+    font-size: 0.8rem;
+  }
+
+  .competition-emblem {
+    width: 40px;
+    height: 40px;
+  }
+
+  .team-crest-small {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+
+  .standings-header-row,
+  .standings-row {
+    grid-template-columns: 30px 1fr 30px 30px 30px 30px 35px 35px 35px 45px;
+    gap: 2px;
+    padding: 8px 10px;
+    font-size: 0.75rem;
+  }
+
+  .standings-header h2 {
+    font-size: 1.2rem;
+  }
+
+  .standings-content {
+    padding: 15px;
+  }
 }
 
 @media (prefers-color-scheme: dark) {

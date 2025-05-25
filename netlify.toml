@@ -33,6 +33,12 @@
   force = true
 
 [[redirects]]
+  from = "/api/standings"
+  to = "/.netlify/functions/getStandings"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200 

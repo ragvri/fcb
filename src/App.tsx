@@ -34,6 +34,7 @@ interface ApiResponse {
 interface Match {
   id: number;
   competition: string;
+  competitionId: number;
   date: string;
   homeTeam: string;
   awayTeam: string;
@@ -44,34 +45,198 @@ interface Match {
   awayTeamCrest?: string | null;
 }
 
+// Standings interfaces
+interface StandingsTeam {
+  id: number;
+  name: string;
+  shortName: string;
+  tla: string;
+  crest: string;
+}
+
+interface StandingsEntry {
+  position: number;
+  team: StandingsTeam;
+  playedGames: number;
+  form: string | null;
+  won: number;
+  draw: number;
+  lost: number;
+  points: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+}
+
+interface StandingsTable {
+  stage: string;
+  type: string;
+  group: string | null;
+  table: StandingsEntry[];
+}
+
+interface StandingsResponse {
+  filters: {
+    season: string;
+  };
+  area: {
+    id: number;
+    name: string;
+    code: string;
+    flag: string;
+  };
+  competition: {
+    id: number;
+    name: string;
+    code: string;
+    type: string;
+    emblem: string;
+  };
+  season: {
+    id: number;
+    startDate: string;
+    endDate: string;
+    currentMatchday: number;
+    winner: any;
+  };
+  standings: StandingsTable[];
+}
+
 function App() {
   const [matches, setMatches] = useState<Match[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [teamCrests, setTeamCrests] = useState<Record<number, string | null>>({});
-  const [pendingDisplayMatches, setPendingDisplayMatches] = useState<ApiMatch[] | null>(null); // Start with null instead of empty array
-  const [crestsFetchComplete, setCrestsFetchComplete] = useState(false); // Track if crest fetching is done
+  const [pendingDisplayMatches, setPendingDisplayMatches] = useState<ApiMatch[] | null>(null);
+  const [crestsFetchComplete, setCrestsFetchComplete] = useState(false);
+
+  // Standings state
+  const [showStandings, setShowStandings] = useState(false);
+  const [standingsData, setStandingsData] = useState<StandingsResponse | null>(null);
+  const [standingsLoading, setStandingsLoading] = useState(false);
+  const [standingsError, setStandingsError] = useState<string | null>(null);
+  const [selectedCompetition, setSelectedCompetition] = useState<{ name: string, code: string } | null>(null);
 
   const fetchTeamCrests = async (teamIds: number[]) => {
     const crests: Record<number, string | null> = {};
-    for (const id of teamIds) {
+    console.log(`Fetching crests for ${teamIds.length} teams with rate limiting...`);
+
+    // Process team crests sequentially with a small delay to avoid overwhelming the rate limiter
+    for (let i = 0; i < teamIds.length; i++) {
+      const id = teamIds[i];
       try {
-        // Adjust API URL for dev/prod if necessary. Netlify functions are typically relative.
+        // Add a small delay between requests to be extra careful with rate limiting
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay between team crest calls
+        }
+
+        console.log(`Fetching crest for team ${id} (${i + 1}/${teamIds.length})`);
         const response = await fetch(`/.netlify/functions/getTeamDetails?teamId=${id}`);
+
         if (!response.ok) {
           console.error(`Failed to fetch crest for team ${id}: ${response.status}`);
           crests[id] = null;
           continue;
         }
+
         const data = await response.json();
-        crests[id] = data.crest; // Assuming the function returns { crest: "url" } or { crest: null }
+        crests[id] = data.crest;
+        console.log(`✓ Crest fetched for team ${id}`);
       } catch (err) {
         console.error(`Error fetching crest for team ${id}:`, err);
         crests[id] = null;
       }
     }
+
+    console.log('All team crests fetched');
     setTeamCrests(crests);
-    setCrestsFetchComplete(true); // Mark crest fetching as complete
+    setCrestsFetchComplete(true);
+  };
+
+  const fetchStandings = async (competitionName: string, competitionId: number) => {
+    setStandingsLoading(true);
+    setStandingsError(null);
+
+    // Map competition names to their codes - we'll need to determine these from the matches
+    const competitionCodeMap: Record<string, string> = {
+      'La Liga': 'PD',
+      'Primera Division': 'PD',
+      'UEFA Champions League': 'CL',
+      'Copa del Rey': 'CDR',
+      'Supercopa de España': 'SUPERCOPA',
+      'UEFA Super Cup': 'SUPEREUROCUP',
+      'FIFA Club World Cup': 'CWC'
+    };
+
+    // Try to find competition code by name, fallback to ID-based logic
+    let competitionCode = competitionCodeMap[competitionName];
+
+    // If we don't have a direct mapping, try some common ID mappings
+    if (!competitionCode) {
+      const idCodeMap: Record<number, string> = {
+        2014: 'PD',  // La Liga
+        2001: 'CL',  // Champions League
+        2015: 'CDR', // Copa del Rey
+      };
+      competitionCode = idCodeMap[competitionId];
+    }
+
+    if (!competitionCode) {
+      setStandingsError(`Unable to determine competition code for "${competitionName}". Standings may not be available for this competition.`);
+      setStandingsLoading(false);
+      return;
+    }
+
+    try {
+      console.log(`📊 Fetching standings for ${competitionName} (${competitionCode})`);
+
+      // Always use the Netlify function to avoid CORS issues
+      const apiUrl = `/.netlify/functions/getStandings?competitionCode=${competitionCode}`;
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {}
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Standings API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+
+        // Check for rate limiting error
+        if (response.status === 429) {
+          throw new Error('API rate limit exceeded. Please wait a moment and try again.');
+        }
+
+        throw new Error(`Failed to fetch standings: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json() as StandingsResponse;
+      console.log('✓ Standings data received');
+      setStandingsData(data);
+      setSelectedCompetition({ name: competitionName, code: competitionCode });
+      setShowStandings(true);
+    } catch (err) {
+      console.error('Error fetching standings:', err);
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred while fetching standings';
+      setStandingsError(errorMessage);
+    } finally {
+      setStandingsLoading(false);
+    }
+  };
+
+  const handleCompetitionClick = (competitionName: string, competitionId: number) => {
+    fetchStandings(competitionName, competitionId);
+  };
+
+  const closeStandings = () => {
+    setShowStandings(false);
+    setStandingsData(null);
+    setStandingsError(null);
+    setSelectedCompetition(null);
   };
 
   useEffect(() => {
@@ -228,6 +393,7 @@ function App() {
       return {
         id: apiMatch.id,
         competition: apiMatch.competition?.name || 'Unknown Competition',
+        competitionId: apiMatch.competition?.id || 0,
         date: matchDate.toLocaleString(undefined, options), // matchDate is now defined locally
         homeTeam: apiMatch.homeTeam?.name || 'TBD',
         awayTeam: apiMatch.awayTeam?.name || 'TBD',
@@ -281,7 +447,13 @@ function App() {
             <div key={match.id} className="match-card">
               <div className="match-date">{match.date}</div>
               <div className="match-competition">
-                {match.competition}
+                <span
+                  className="competition-name clickable"
+                  onClick={() => handleCompetitionClick(match.competition, match.competitionId)}
+                  title="Click to view standings"
+                >
+                  {match.competition}
+                </span>
                 <span className="match-stage"> • {match.stage.replace(/_/g, ' ')}</span>
               </div>
               <div className="match-teams">
@@ -305,6 +477,84 @@ function App() {
           ))
         )}
       </div>
+
+      {/* Standings Modal */}
+      {showStandings && (
+        <div className="standings-modal-overlay" onClick={closeStandings}>
+          <div className="standings-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="standings-header">
+              <h2>{selectedCompetition?.name} - Standings</h2>
+              <button className="close-button" onClick={closeStandings}>&times;</button>
+            </div>
+
+            {standingsLoading && (
+              <div className="standings-loading">
+                <div className="loading-spinner"></div>
+                <p>Loading standings...</p>
+              </div>
+            )}
+
+            {standingsError && (
+              <div className="standings-error">
+                <p>{standingsError}</p>
+              </div>
+            )}
+
+            {standingsData && standingsData.standings && standingsData.standings.length > 0 && (
+              <div className="standings-content">
+                <div className="competition-info">
+                  <img src={standingsData.competition.emblem} alt={standingsData.competition.name} className="competition-emblem" />
+                  <div>
+                    <h3>{standingsData.competition.name}</h3>
+                    <p>Season {standingsData.filters.season} • Matchday {standingsData.season.currentMatchday}</p>
+                  </div>
+                </div>
+
+                {standingsData.standings.map((standing, index) => (
+                  <div key={index} className="standings-table-container">
+                    <h4>{standing.stage.replace(/_/g, ' ')} - {standing.type}</h4>
+                    <div className="standings-table">
+                      <div className="standings-header-row">
+                        <span className="pos">Pos</span>
+                        <span className="team">Team</span>
+                        <span className="played">P</span>
+                        <span className="won">W</span>
+                        <span className="draw">D</span>
+                        <span className="lost">L</span>
+                        <span className="goals">GF</span>
+                        <span className="goals">GA</span>
+                        <span className="gd">GD</span>
+                        <span className="points">Pts</span>
+                      </div>
+
+                      {standing.table.map((entry) => (
+                        <div
+                          key={entry.team.id}
+                          className={`standings-row ${entry.team.name.includes('Barcelona') || entry.team.name.includes('FC Barcelona') ? 'barcelona-row' : ''}`}
+                        >
+                          <span className="pos">{entry.position}</span>
+                          <span className="team">
+                            <img src={entry.team.crest} alt={entry.team.shortName} className="team-crest-small" />
+                            <span className="team-name">{entry.team.shortName}</span>
+                          </span>
+                          <span className="played">{entry.playedGames}</span>
+                          <span className="won">{entry.won}</span>
+                          <span className="draw">{entry.draw}</span>
+                          <span className="lost">{entry.lost}</span>
+                          <span className="goals">{entry.goalsFor}</span>
+                          <span className="goals">{entry.goalsAgainst}</span>
+                          <span className="gd">{entry.goalDifference > 0 ? '+' : ''}{entry.goalDifference}</span>
+                          <span className="points">{entry.points}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
