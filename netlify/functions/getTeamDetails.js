@@ -1,19 +1,22 @@
-import { makeRateLimitedApiCall, getRateLimitStatus } from './utils/rateLimiter.js';
+import {
+  makeRateLimitedApiCall,
+  getRateLimitStatus,
+} from './utils/rateLimiter.js';
 
-export const handler = async (event) => {
+export const handler = async event => {
   // Set CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*', // Allow requests from any origin
     'Access-Control-Allow-Headers': 'Content-Type, X-Auth-Token',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
   };
 
   // Handle OPTIONS request (preflight)
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 204,
-      headers
+      headers,
     };
   }
 
@@ -23,7 +26,7 @@ export const handler = async (event) => {
     return {
       statusCode: 400,
       headers,
-      body: JSON.stringify({ error: 'teamId query parameter is required' })
+      body: JSON.stringify({ error: 'teamId query parameter is required' }),
     };
   }
 
@@ -32,12 +35,15 @@ export const handler = async (event) => {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'API key is not configured' })
+      body: JSON.stringify({ error: 'API key is not configured' }),
     };
   }
 
   try {
-    console.log('Rate limit status before team details call:', getRateLimitStatus());
+    console.log(
+      'Rate limit status before team details call:',
+      getRateLimitStatus()
+    );
 
     // Use rate-limited API call
     const response = await makeRateLimitedApiCall(
@@ -50,15 +56,15 @@ export const handler = async (event) => {
       console.error('API Error for teamId ' + teamId + ':', {
         status: response.status,
         statusText: response.statusText,
-        body: errorText
+        body: errorText,
       });
       return {
         statusCode: response.status,
         headers,
         body: JSON.stringify({
           error: `Failed to fetch team data for teamId ${teamId}: ${response.statusText}`,
-          details: errorText
-        })
+          details: errorText,
+        }),
       };
     }
 
@@ -67,30 +73,35 @@ export const handler = async (event) => {
     // or just { crest: data.crest } if we want to be minimal.
     // For now, let's return the crest directly.
     if (!data.crest) {
-      console.warn('Crest not found for teamId ' + teamId + '. API response:', data);
+      console.warn(
+        'Crest not found for teamId ' + teamId + '. API response:',
+        data
+      );
       // Return null or an empty string if crest is not available but the request was otherwise successful
       return {
         statusCode: 200, // Or 404 if we consider missing crest as "not found"
         headers,
-        body: JSON.stringify({ crest: null }) // Explicitly return null for crest
+        body: JSON.stringify({ crest: null }), // Explicitly return null for crest
       };
     }
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ crest: data.crest })
+      body: JSON.stringify({ crest: data.crest }),
     };
-
   } catch (error) {
-    console.error('Function error for getTeamDetails, teamId ' + teamId + ':', error.message);
+    console.error(
+      'Function error for getTeamDetails, teamId ' + teamId + ':',
+      error.message
+    );
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
         error: error.message,
-        type: error.constructor.name
-      })
+        type: error.constructor.name,
+      }),
     };
   }
 };

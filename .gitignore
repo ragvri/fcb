@@ -27,6 +27,7 @@ lerna-debug.log*
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 .idea
 .DS_Store
 *.suo
@@ -37,5 +38,15 @@ lerna-debug.log*
 
 # TypeScript
 *.tsbuildinfo 
+
+# ESLint cache
+.eslintcache
+
+# Prettier cache
+.prettierignore
+
 # Local Netlify folder
 .netlify
+
+# Husky
+.husky/_
