@@ -1,24 +1,30 @@
-import { makeRateLimitedApiCall, getRateLimitStatus } from './utils/rateLimiter.js';
+import {
+  makeRateLimitedApiCall,
+  getRateLimitStatus,
+} from './utils/rateLimiter.js';
 
-export const handler = async (event) => {
+export const handler = async event => {
   // Set CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, X-Auth-Token',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
   };
 
   // Handle OPTIONS request (preflight)
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 204,
-      headers
+      headers,
     };
   }
 
   try {
-    console.log('Function starting, checking API key:', !!process.env.VITE_FOOTBALL_API_KEY);
+    console.log(
+      'Function starting, checking API key:',
+      !!process.env.VITE_FOOTBALL_API_KEY
+    );
     console.log('Rate limit status:', getRateLimitStatus());
 
     if (!process.env.VITE_FOOTBALL_API_KEY) {
@@ -36,9 +42,11 @@ export const handler = async (event) => {
       console.error('API Error:', {
         status: response.status,
         statusText: response.statusText,
-        body: errorText
+        body: errorText,
       });
-      throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `HTTP error! status: ${response.status} ${response.statusText}`
+      );
     }
 
     const data = await response.json();
@@ -47,7 +55,7 @@ export const handler = async (event) => {
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     };
   } catch (error) {
     console.error('Function error:', error.message);
@@ -56,8 +64,8 @@ export const handler = async (event) => {
       headers,
       body: JSON.stringify({
         error: error.message,
-        type: error.constructor.name
-      })
+        type: error.constructor.name,
+      }),
     };
   }
-}; 
+};

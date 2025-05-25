@@ -29,6 +29,30 @@ Visit the live application at: [https://ragvri-fcb.netlify.app](https://ragvri-f
   - Netlify Functions (Serverless)
 - **API:**
   - [football-data.org](https://www.football-data.org/) API
+- **Code Quality:**
+  - ESLint for linting
+  - Prettier for code formatting
+  - Husky for git hooks
+  - lint-staged for pre-commit checks
+  - GitHub Actions for CI/CD
+
+## 📋 Code Quality
+
+This project maintains high code quality standards with automated formatting and linting. See [CODE_QUALITY.md](./CODE_QUALITY.md) for detailed information about:
+
+- Available scripts for linting and formatting
+- Git hooks for automated quality checks
+- GitHub Actions CI/CD pipeline
+- VSCode integration and recommended extensions
+- Code style rules and conventions
+
+**Quick commands:**
+
+```bash
+npm run lint          # Check code quality
+npm run format        # Format all files
+npm run type-check    # TypeScript checking
+```
 
 ## 🚀 Local Development
 
@@ -41,23 +65,43 @@ Visit the live application at: [https://ragvri-fcb.netlify.app](https://ragvri-f
 
 ### Setup
 
+For a streamlined setup, you can use the provided setup script:
+
+```bash
+./setup.sh
+```
+
+This script will:
+
+- Check Node.js version
+- Install dependencies
+- Set up git hooks
+- Create a `.env` file from `.env.example` (if it doesn't exist)
+- Run initial code quality checks and a test build
+
+Alternatively, you can follow the manual steps below:
+
 1. Clone the repository:
+
    ```bash
    git clone <your-repo-url>
    cd fcb
    ```
 
 2. Install dependencies:
+
    ```bash
    npm install
    ```
 
 3. Create a `.env` file in the root directory:
+
    ```bash
    cp .env.example .env
    ```
 
 4. Add your football-data.org API key to the `.env` file:
+
    ```
    VITE_FOOTBALL_API_KEY=your_api_key_here
    ```
@@ -107,4 +151,4 @@ ISC
 
 - [football-data.org](https://www.football-data.org/) for providing the API
 - [Netlify](https://www.netlify.com/) for hosting and serverless functions
-- [Vite](https://vitejs.dev/) for the build tooling 
+- [Vite](https://vitejs.dev/) for the build tooling
