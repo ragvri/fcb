@@ -2,17 +2,18 @@ module.exports = {
 	root: true,
 	env: {
 		browser: true,
-		es2020: true,
+		es2020: true, // Kept es2020, can be es2021 or latest if preferred
 		node: true
 	},
 	extends: [
 		'eslint:recommended',
 		'plugin:react/recommended',
 		'plugin:react-hooks/recommended',
-		'plugin:react/jsx-runtime',
-		'plugin:@typescript-eslint/recommended'
+		'plugin:react/jsx-runtime', // Ensures React 17+ JSX transform compatibility
+		'plugin:@typescript-eslint/recommended',
+		'plugin:prettier/recommended' // Added for Prettier integration, should be last
 	],
-	ignorePatterns: ['dist', '.eslintrc.cjs'],
+	ignorePatterns: ['dist', '.vscode/', '.eslintrc.cjs'], // Added .vscode
 	parser: '@typescript-eslint/parser',
 	parserOptions: {
 		ecmaVersion: 'latest',
@@ -20,13 +21,13 @@ module.exports = {
 		ecmaFeatures: {
 			jsx: true
 		},
-		project: './tsconfig.json'
+		project: ['./tsconfig.json'] // Main tsconfig for src files
 	},
 	plugins: [
 		'react-refresh',
-		'react',
-		'react-hooks',
-		'@typescript-eslint'
+		'react', // Already present
+		'react-hooks', // Already present
+		'@typescript-eslint' // Already present
 	],
 	settings: {
 		react: {
@@ -40,17 +41,30 @@ module.exports = {
 		],
 		'react/prop-types': 'off',
 		'react/react-in-jsx-scope': 'off',
-		'no-console': 'off',
+		'no-console': 'warn', // Changed from 'off' to 'warn' for general console logs
 		'prefer-const': 'error',
 		'no-var': 'error',
-		'no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
+		'@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }], // Changed from no-unused-vars
+		'@typescript-eslint/no-explicit-any': 'warn', // Added from previous .eslintrc.json
+		'react/no-unescaped-entities': 'warn' // Added from previous .eslintrc.json
 	},
 	overrides: [
 		{
+			// Specific override for vite.config.ts
+			files: ['vite.config.ts'],
+			parserOptions: {
+				project: ['./tsconfig.node.json'] // Use tsconfig.node.json for Vite config
+			},
+			rules: {
+				'@typescript-eslint/no-var-requires': 'off' // Allow require if needed in Vite config
+			}
+		},
+		{
 			files: ['netlify/functions/**/*.js'],
 			rules: {
-				'no-console': 'off' // Allow console.log in Netlify functions
+				'no-console': 'off', // Allow console.log in Netlify functions
+				'@typescript-eslint/no-var-requires': 'off' // Allow require in Netlify JS functions
 			}
 		}
 	]
-}
+};
