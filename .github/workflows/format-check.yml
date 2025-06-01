@@ -1,0 +1,37 @@
+name: Code Quality Check
+
+on:
+  pull_request:
+    branches: [ '**' ] # Run on all branches
+
+jobs:
+  quality-check: # Renamed job
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '21.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run Linter and Formatter Checks
+      run: npm run lint 
+
+    - name: Comment PR if formatting issues found
+      if: failure()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '⚠️ **Code quality issues detected!**\\n\\nPlease run `npm run lint:fix` and `npm run format` to fix issues before merging.' // Updated comment body
+          })
