@@ -42,9 +42,6 @@ lerna-debug.log*
 # ESLint cache
 .eslintcache
 
-# Prettier cache
-.prettierignore
-
 # Local Netlify folder
 .netlify
 
