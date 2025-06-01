@@ -1,6 +1,8 @@
 name: Code Quality Check
 
 on:
+  push:
+    branches: [ '**' ]
   pull_request:
     branches: [ '**' ] # Run on all branches
 
@@ -25,7 +27,7 @@ jobs:
       run: npm run lint 
 
     - name: Comment PR if formatting issues found
-      if: failure()
+      if: failure() && github.event_name == 'pull_request'
       uses: actions/github-script@v7
       with:
         script: |
