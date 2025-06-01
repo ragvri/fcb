@@ -138,6 +138,8 @@ This project is configured for deployment on Netlify. To deploy:
 
 ## 🤝 Contributing
 
+For detailed information on how to contribute to this project, please see the [CONTRIBUTING.md](./CONTRIBUTING.md) file.
+
 1. Fork the repository
 2. Create a new branch
 3. Make your changes
