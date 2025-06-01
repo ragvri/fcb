@@ -97,7 +97,7 @@ interface StandingsResponse {
     startDate: string;
     endDate: string;
     currentMatchday: number;
-    winner: any;
+    winner: StandingsTeam | null; // Changed from any
   };
   standings: StandingsTable[];
 }
@@ -480,7 +480,7 @@ function App() {
   if (loading) {
     return (
       <div className='app'>
-        <h1>Loading Barcelona's Upcoming Matches...</h1>
+        <h1>Loading Barcelona&apos;s Upcoming Matches...</h1>
         <div className='loading-spinner'></div>
       </div>
     );

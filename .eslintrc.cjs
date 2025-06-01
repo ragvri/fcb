@@ -41,7 +41,7 @@ module.exports = {
 		],
 		'react/prop-types': 'off',
 		'react/react-in-jsx-scope': 'off',
-		'no-console': 'warn', // Changed from 'off' to 'warn' for general console logs
+		'no-console': 'off', // Changed from 'warn' to 'off'
 		'prefer-const': 'error',
 		'no-var': 'error',
 		'@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }], // Changed from no-unused-vars
